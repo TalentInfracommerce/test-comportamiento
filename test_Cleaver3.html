@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test de Cleaver (DISC)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6;
+        }
+        .container {
+            max-width: 800px;
+        }
+        .card {
+            background-color: #fff;
+            border-radius: 1rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+        }
+        .result-item {
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 1rem;
+            margin-bottom: 1rem;
+        }
+        .result-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex items-center justify-center p-4 min-h-screen">
+    <div class="container mx-auto">
+        <div id="app" class="space-y-8">
+            <header class="text-center">
+                <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-2">Test de Cleaver (DISC)</h1>
+                <p class="text-gray-600 text-lg">Evalúa tu perfil de comportamiento en cuatro dimensiones: Dominancia, Influencia, Estabilidad y Concienciación.</p>
+            </header>
+
+            <!-- Sección de instrucciones -->
+            <div id="instructions" class="card">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-4">Instrucciones</h2>
+                <ol class="list-decimal list-inside text-gray-600 space-y-2">
+                    <li>Por favor, responde a todas las preguntas. No dejes ninguna en blanco.</li>
+                    <li>En cada grupo de palabras, selecciona la que te describa "MÁS" y la que te describa "MENOS".</li>
+                    <li>Responde de forma espontánea, basándote en cómo eres realmente, no en cómo te gustaría ser.</li>
+                </ol>
+                <div class="mt-6 text-center">
+                    <button id="start-button" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition-colors duration-300 transform hover:scale-105">
+                        Empezar Test
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sección del test -->
+            <form id="cleaver-form" class="hidden space-y-6" action="https://formspree.io/f/mqadworr" method="POST">
+                <!-- Campo para el nombre -->
+                <div class="card">
+                    <label for="userName" class="block text-lg font-semibold text-gray-700 mb-2">Tu Nombre:</label>
+                    <input type="text" id="userName" name="userName" placeholder="Nombre completo" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" required>
+                </div>
+                <!-- Los bloques de preguntas se generarán aquí con JavaScript -->
+            </form>
+
+            <!-- Botón de resultados y alerta de validación -->
+            <div id="form-controls" class="hidden text-center space-y-4">
+                <p id="validation-message" class="text-red-500 font-semibold hidden"></p>
+                <button type="submit" form="cleaver-form" class="px-6 py-3 bg-green-600 text-white font-semibold rounded-full hover:bg-green-700 transition-colors duration-300 transform hover:scale-105">
+                    Enviar Resultados
+                </button>
+            </div>
+
+            <!-- Sección de mensaje de éxito -->
+            <div id="success-section" class="card hidden text-center">
+                <div class="flex flex-col items-center">
+                    <i class="fas fa-check-circle text-6xl text-green-500 mb-4 animate-bounce"></i>
+                    <h2 class="text-2xl font-semibold text-gray-700 mb-2">¡Test Completado!</h2>
+                    <p class="text-gray-600 mb-4">Tus resultados han sido enviados. ¡Muchas gracias!</p>
+                </div>
+                <div class="mt-8 text-center">
+                    <button id="restart-button" class="px-6 py-3 bg-gray-600 text-white font-semibold rounded-full hover:bg-gray-700 transition-colors duration-300 transform hover:scale-105">
+                        Reiniciar Test
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // Definición de las preguntas del test
+        const questions = [
+            { id: '1', words: [{ text: "Decidido", category: "D" }, { text: "Convincente", category: "I" }, { text: "Paciente", category: "S" }, { text: "Preciso", category: "C" }] },
+            { id: '2', words: [{ text: "Cauteloso", category: "C" }, { text: "Expresivo", category: "I" }, { text: "Competitivo", category: "D" }, { text: "Adaptable", category: "S" }] },
+            { id: "3", words: [{ text: "Audaz", category: "D" }, { text: "Simpático", category: "I" }, { text: "Tranquilo", category: "S" }, { text: "Metódico", category: "C" }] },
+            { id: "4", words: [{ text: "Analítico", category: "C" }, { text: "Sociable", category: "I" }, { text: "Diplomático", category: "S" }, { text: "Resuelto", category: "D" }] },
+            { id: "5", words: [{ text: "Agresivo", category: "D" }, { text: "Encantador", category: "I" }, { text: "Cooperativo", category: "S" }, { text: "Sistemático", category: "C" }] },
+            { id: "6", words: [{ text: "Perfeccionista", category: "C" }, { text: "Alegre", category: "I" }, { text: "Pionero", category: "D" }, { text: "Constante", category: "S" }] },
+            { id: "7", words: [{ text: "Valiente", category: "D" }, { text: "Jovial", category: "I" }, { text: "Estable", category: "S" }, { text: "Disciplinado", category: "C" }] },
+            { id: "8", words: [{ text: "Reservado", category: "C" }, { text: "Entusiasta", category: "I" }, { text: "Dinámico", category: "D" }, { text: "Amable", category: "S" }] },
+            { id: "9", words: [{ text: "Directo", category: "D" }, { text: "Atractivo", category: "I" }, { text: "Obediente", category: "S" }, { text: "Preciso", category: "C" }] },
+            { id: "10", words: [{ text: "Minucioso", category: "C" }, { text: "Persuasivo", category: "I" }, { text: "Inquieto", category: "D" }, { text: "Paciente", category: "S" }] },
+            { id: "11", words: [{ text: "Consciente", category: "C" }, { text: "Inspirador", category: "I" }, { text: "Fuerte", category: "D" }, { text: "Relajado", category: "S" }] },
+            { id: "12", words: [{ text: "Atrevido", category: "D" }, { text: "Encantador", category: "I" }, { text: "Confiable", category: "S" }, { text: "Detallista", category: "C" }] },
+            { id: "13", words: [{ text: "Analítico", category: "C" }, { text: "Extrovertido", category: "I" }, { text: "Tenaz", category: "D" }, { text: "Cordial", category: "S" }] },
+            { id: "14", words: [{ text: "Decisivo", category: "D" }, { text: "Comunicativo", category: "I" }, { text: "Servicial", category: "S" }, { text: "Concienzudo", category: "C" }] },
+            { id: "15", words: [{ text: "Firme", category: "D" }, { text: "Agradable", category: "I" }, { text: "Estable", category: "S" }, { text: "Correcto", category: "C" }] },
+            { id: "16", words: [{ text: "Preciso", category: "C" }, { text: "Hablador", category: "I" }, { text: "Poderoso", category: "D" }, { text: "Gentil", category: "S" }] },
+            { id: "17", words: [{ text: "Enérgico", category: "D" }, { text: "Amistoso", category: "I" }, { text: "Predecible", category: "S" }, { text: "Formal", category: "C" }] },
+            { id: "18", words: [{ text: "Lógico", category: "C" }, { text: "Sociable", category: "I" }, { text: "Confiado", category: "D" }, { text: "Consistente", category: "S" }] },
+            { id: "19", words: [{ text: "Resuelto", category: "D" }, { text: "Popular", category: "I" }, { text: "Tranquilo", category: "S" }, { text: "Exigente", category: "C" }] },
+            { id: "20", words: [{ text: "Cuidadoso", category: "C" }, { text: "Optimista", category: "I" }, { text: "Atrevido", category: "D" }, { text: "Calmado", category: "S" }] },
+            { id: "21", words: [{ text: "Pionero", category: "D" }, { text: "Carismático", category: "I" }, { text: "Leal", category: "S" }, { text: "Exacto", category: "C" }] },
+            { id: "22", words: [{ text: "Analítico", category: "C" }, { text: "Vivaz", category: "I" }, { text: "Controlador", category: "D" }, { text: "Empático", category: "S" }] },
+            { id: "23", words: [{ text: "Valiente", category: "D" }, { text: "Expansivo", category: "I" }, { text: "Previsible", category: "S" }, { text: "Prudente", category: "C" }] },
+            { id: "24", words: [{ text: "Sistemático", category: "C" }, { text: "Entusiasta", category: "I" }, { text: "Decidido", category: "D" }, { text: "Servicial", category: "S" }] }
+        ];
+
+        // Referencias a elementos del DOM
+        const startButton = document.getElementById('start-button');
+        const instructionsSection = document.getElementById('instructions');
+        const cleaverForm = document.getElementById('cleaver-form');
+        const formControls = document.getElementById('form-controls');
+        const successSection = document.getElementById('success-section');
+        const validationMessage = document.getElementById('validation-message');
+        const restartButton = document.getElementById('restart-button');
+        
+        // Función para generar los bloques de preguntas
+        function renderQuestions() {
+            cleaverForm.innerHTML = `
+                <div class="card">
+                    <label for="userName" class="block text-lg font-semibold text-gray-700 mb-2">Tu Nombre:</label>
+                    <input type="text" id="userName" name="userName" placeholder="Nombre completo" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" required>
+                </div>
+            `;
+            questions.forEach((q, index) => {
+                const questionBlock = document.createElement('div');
+                questionBlock.className = 'card space-y-4';
+
+                const header = document.createElement('h3');
+                header.className = 'text-xl font-semibold text-gray-800';
+                header.textContent = `Grupo de palabras ${index + 1} de ${questions.length}`;
+                questionBlock.appendChild(header);
+
+                const table = document.createElement('table');
+                table.className = 'w-full text-left table-fixed';
+                table.innerHTML = `
+                    <thead class="text-gray-500 text-sm">
+                        <tr>
+                            <th class="w-1/2">Palabra</th>
+                            <th class="w-1/4 text-center">MÁS</th>
+                            <th class="w-1/4 text-center">MENOS</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                `;
+                const tbody = table.querySelector('tbody');
+
+                q.words.forEach(word => {
+                    const row = document.createElement('tr');
+                    row.className = 'border-t border-gray-200';
+                    row.innerHTML = `
+                        <td class="py-2 text-gray-700">${word.text}</td>
+                        <td class="py-2 text-center">
+                            <input type="radio" name="most_group_${q.id}" value="${word.category}" class="form-radio h-5 w-5 text-blue-600 rounded-full cursor-pointer" data-word="${word.text}" required>
+                        </td>
+                        <td class="py-2 text-center">
+                            <input type="radio" name="least_group_${q.id}" value="${word.category}" class="form-radio h-5 w-5 text-blue-600 rounded-full cursor-pointer" data-word="${word.text}" required>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+
+                questionBlock.appendChild(table);
+                cleaverForm.appendChild(questionBlock);
+            });
+        }
+
+        // Función para validar que todas las preguntas han sido respondidas
+        function validateForm() {
+            let isValid = true;
+            validationMessage.textContent = '';
+            validationMessage.classList.add('hidden');
+
+            const userNameInput = document.getElementById('userName');
+            if (!userNameInput.value.trim()) {
+                validationMessage.textContent = 'Por favor, ingresa tu nombre.';
+                validationMessage.classList.remove('hidden');
+                return false;
+            }
+
+            for (const q of questions) {
+                const mostSelected = document.querySelector(`input[name="most_group_${q.id}"]:checked`);
+                const leastSelected = document.querySelector(`input[name="least_group_${q.id}"]:checked`);
+
+                if (!mostSelected || !leastSelected) {
+                    isValid = false;
+                    break;
+                }
+                
+                const mostWord = mostSelected.dataset.word;
+                const leastWord = leastSelected.dataset.word;
+                if (mostWord === leastWord) {
+                    isValid = false;
+                    validationMessage.textContent = 'En cada grupo, las selecciones de "MÁS" y "MENOS" deben ser palabras diferentes.';
+                    validationMessage.classList.remove('hidden');
+                    break;
+                }
+            }
+
+            if (!isValid && validationMessage.classList.contains('hidden')) {
+                validationMessage.textContent = 'Por favor, responde a todas las preguntas.';
+                validationMessage.classList.remove('hidden');
+            }
+
+            return isValid;
+        }
+
+        // Función para calcular y poblar el formulario
+        function calculateAndPopulateForm(event) {
+            if (!validateForm()) {
+                event.preventDefault(); // Detiene el envío si la validación falla
+                return;
+            }
+        
+            const userName = document.getElementById('userName').value.trim();
+        
+            // 1. Puntajes de "MÁS"
+            let plusScores = { D: 0, I: 0, S: 0, C: 0 };
+            const mostInputs = cleaverForm.querySelectorAll('input[name^="most_group_"]:checked');
+            mostInputs.forEach(input => plusScores[input.value]++);
+            
+            // 2. Puntajes de "MENOS"
+            let minusScores = { D: 0, I: 0, S: 0, C: 0 };
+            const leastInputs = cleaverForm.querySelectorAll('input[name^="least_group_"]:checked');
+            leastInputs.forEach(input => minusScores[input.value]++);
+        
+            // 3. Puntajes finales (DISC)
+            const finalScores = {
+                D: plusScores.D - minusScores.D,
+                I: plusScores.I - minusScores.I,
+                S: plusScores.S - minusScores.S,
+                C: plusScores.C - minusScores.C,
+            };
+        
+            // 4. Generar el análisis cualitativo
+            let qualitativeAnalysis = `
+                Análisis de Perfil de ${userName}:
+                
+                ---
+                Resultados de Puntaje Final (DISC):
+                D: ${finalScores.D}
+                I: ${finalScores.I}
+                S: ${finalScores.S}
+                C: ${finalScores.C}
+                
+                ---
+                Puntajes de "MÁS" (Comportamiento Preferido):
+                D: ${plusScores.D}
+                I: ${plusScores.I}
+                S: ${plusScores.S}
+                C: ${plusScores.C}
+                
+                ---
+                Puntajes de "MENOS" (Comportamiento Menos Preferido):
+                D: ${minusScores.D}
+                I: ${minusScores.I}
+                S: ${minusScores.S}
+                C: ${minusScores.C}
+                
+                ---
+                Interpretación Cualitativa:
+                
+                Dominancia (D): ${getInterpretation(finalScores.D, 'D')}
+                
+                Influencia (I): ${getInterpretation(finalScores.I, 'I')}
+                
+                Estabilidad (S): ${getInterpretation(finalScores.S, 'S')}
+                
+                Concienciación (C): ${getInterpretation(finalScores.C, 'C')}
+            `;
+        
+            // 5. Crear el campo oculto con el análisis cualitativo
+            const analysisInput = document.createElement('input');
+            analysisInput.type = 'hidden';
+            analysisInput.name = 'Analisis_Completo';
+            analysisInput.value = qualitativeAnalysis;
+            cleaverForm.appendChild(analysisInput);
+        
+            // 6. Remover los campos ocultos antiguos si existieran para evitar duplicados
+            const oldHiddenInputs = cleaverForm.querySelectorAll('input[name^="Puntajes_"]');
+            oldHiddenInputs.forEach(input => input.remove());
+        
+            // 7. Reemplazar el campo de nombre para que Formspree lo reconozca correctamente
+            const userNameInput = document.getElementById('userName');
+            const newUserNameInput = document.createElement('input');
+            newUserNameInput.type = 'hidden';
+            newUserNameInput.name = 'name';
+            newUserNameInput.value = userName;
+            cleaverForm.appendChild(newUserNameInput);
+        
+            // Prevenir el envío si no hay un nombre
+            if (!userName) {
+                event.preventDefault();
+                return;
+            }
+        }
+        
+        // Función de interpretación de resultados
+        function getInterpretation(score, category) {
+            switch (category) {
+                case 'D':
+                    if (score > 5) return 'Puntaje alto: Tiende a ser directo, competitivo, enérgico y orientado a los resultados. Le gusta tomar el control y enfrentar desafíos.';
+                    if (score < -5) return 'Puntaje bajo: Prefiere un entorno más estable y predecible. Tiende a ser cauteloso, deliberado y a evitar la confrontación.';
+                    return 'Puntaje moderado: Es flexible y puede adaptarse a diferentes situaciones, tanto competitivas como colaborativas.';
+                case 'I':
+                    if (score > 5) return 'Puntaje alto: Se caracteriza por ser persuasivo, optimista y sociable. Le gusta trabajar con otras personas y es capaz de influir en su entorno.';
+                    if (score < -5) return 'Puntaje bajo: Es más reservado, analítico y prefiere trabajar de forma independiente. No se siente cómodo siendo el centro de atención.';
+                    return 'Puntaje moderado: Puede ser tanto sociable como reservado, adaptando su estilo a la situación.';
+                case 'S':
+                    if (score > 5) return 'Puntaje alto: Tiende a ser paciente, cooperativo, confiable y constante. Le gusta la estabilidad, la armonía y es un miembro de equipo leal.';
+                    if (score < -5) return 'Puntaje bajo: Es una persona activa, dinámica y orientada al cambio. Se siente cómodo con la variedad y el ritmo rápido.';
+                    return 'Puntaje moderado: Es capaz de mantener un buen ritmo, pero también puede adaptarse a nuevas situaciones con relativa facilidad.';
+                case 'C':
+                    if (score > 5) return 'Puntaje alto: Se distingue por ser preciso, analítico, formal y meticuloso. Valora la calidad, la exactitud y los procedimientos correctos.';
+                    if (score < -5) return 'Puntaje bajo: Tiende a ser más flexible, menos preocupado por los detalles y más abierto a soluciones creativas. Puede ser menos formal y sistemático.';
+                    return 'Puntaje moderado: Es capaz de ser preciso cuando es necesario, pero también puede ser flexible y adaptable a diferentes situaciones.';
+                default:
+                    return '';
+            }
+        }
+
+        // Event Listeners
+        startButton.addEventListener('click', () => {
+            instructionsSection.classList.add('hidden');
+            cleaverForm.classList.remove('hidden');
+            formControls.classList.remove('hidden');
+            renderQuestions();
+            window.scrollTo(0, 0); // Desplazarse al inicio de la página
+        });
+
+        cleaverForm.addEventListener('submit', calculateAndPopulateForm);
+
+        restartButton.addEventListener('click', () => {
+            successSection.classList.add('hidden');
+            instructionsSection.classList.remove('hidden');
+            cleaverForm.reset();
+            window.scrollTo(0, 0);
+        });
+    </script>
+</body>
+</html>
