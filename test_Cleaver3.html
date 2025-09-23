@@ -119,10 +119,6 @@
         ];
 
         const jobProfiles = {
-            "Líder de Equipo": { D: 10, I: 8, S: 4, C: 2 },
-            "Especialista en Ventas": { D: 9, I: 11, S: 3, C: 1 },
-            "Analista de Datos": { D: 2, I: 1, S: 4, C: 10 },
-            "Atención al Cliente": { D: 3, I: 6, S: 11, C: 4 },
             "Martech Specialist Semi Senior": { D: 6, I: 5, S: 6, C: 7 },
             "Pasante de e-commerce": { D: 3, I: 7, S: 6, C: 8 },
             "Controller": { D: 5, I: 4, S: 7, C: 9 },
@@ -165,20 +161,18 @@
         const getCombination = (scores) => {
             const sortedScores = Object.entries(scores).sort(([, a], [, b]) => b - a);
             const topTwo = sortedScores.slice(0, 2);
-            if (topTwo[0][1] <= 0) return null; // No hay un perfil dominante
+            if (topTwo[0][1] <= 0) return null;
             
             const comboKey = topTwo.map(([key]) => key).join('');
             
             if (combinations[comboKey]) {
                 return combinations[comboKey];
             } else {
-                // Si la combinación no existe en el objeto, la invertimos para buscar
                 const invertedComboKey = topTwo.map(([key]) => key).reverse().join('');
                 return combinations[invertedComboKey];
             }
         };
 
-        // Referencias a elementos del DOM
         const startButton = document.getElementById('start-button');
         const instructionsSection = document.getElementById('instructions');
         const cleaverForm = document.getElementById('cleaver-form');
@@ -187,12 +181,22 @@
         const validationMessage = document.getElementById('validation-message');
         const restartButton = document.getElementById('restart-button');
         
-        // Función para generar los bloques de preguntas
         function renderQuestions() {
+            let jobOptions = '';
+            for (const job in jobProfiles) {
+                jobOptions += `<option value="${job}">${job}</option>`;
+            }
+
             cleaverForm.innerHTML = `
-                <div class="card">
+                <div class="card space-y-4">
                     <label for="userName" class="block text-lg font-semibold text-gray-700 mb-2">Tu Nombre:</label>
                     <input type="text" id="userName" name="userName" placeholder="Nombre completo" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" required>
+                    
+                    <label for="jobRole" class="block text-lg font-semibold text-gray-700 mb-2">Puesto de comparación:</label>
+                    <select id="jobRole" name="jobRole" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200" required>
+                        <option value="">Selecciona un puesto</option>
+                        ${jobOptions}
+                    </select>
                 </div>
             `;
             questions.forEach((q, index) => {
@@ -239,15 +243,20 @@
             });
         }
 
-        // Función para validar que todas las preguntas han sido respondidas
         function validateForm() {
             let isValid = true;
             validationMessage.textContent = '';
             validationMessage.classList.add('hidden');
 
             const userNameInput = document.getElementById('userName');
+            const jobRoleInput = document.getElementById('jobRole');
             if (!userNameInput.value.trim()) {
                 validationMessage.textContent = 'Por favor, ingresa tu nombre.';
+                validationMessage.classList.remove('hidden');
+                return false;
+            }
+            if (!jobRoleInput.value) {
+                validationMessage.textContent = 'Por favor, selecciona un puesto.';
                 validationMessage.classList.remove('hidden');
                 return false;
             }
@@ -279,56 +288,40 @@
             return isValid;
         }
         
-        // Función para calcular la compatibilidad
-        function calculateCompatibility(plusScores) {
-            let compatibilityAnalysis = "Compatibilidad con Perfiles de Puesto:\n";
-            let totalCompatibility = 0;
-            const profilesCount = Object.keys(jobProfiles).length;
+        function calculateCompatibility(plusScores, selectedJob) {
+            let compatibilityAnalysis = `Compatibilidad con el puesto de ${selectedJob}:\n`;
 
-            for (const profile in jobProfiles) {
-                const ideal = jobProfiles[profile];
-                let score = 0;
-                
-                // Comparar D
-                score += (12 - Math.abs(plusScores.D - ideal.D));
-                // Comparar I
-                score += (12 - Math.abs(plusScores.I - ideal.I));
-                // Comparar S
-                score += (12 - Math.abs(plusScores.S - ideal.S));
-                // Comparar C
-                score += (12 - Math.abs(plusScores.C - ideal.C));
-                
-                const normalizedScore = (score / 48) * 100; // 48 es el puntaje máximo total
-                compatibilityAnalysis += `\n- ${profile}: ${normalizedScore.toFixed(0)}% de compatibilidad`;
-                totalCompatibility += normalizedScore;
-            }
-
-            const averageCompatibility = totalCompatibility / profilesCount;
-            compatibilityAnalysis += `\n\n- Compatibilidad promedio con los perfiles: ${averageCompatibility.toFixed(0)}%`;
+            const ideal = jobProfiles[selectedJob];
+            let score = 0;
+            
+            score += (12 - Math.abs(plusScores.D - ideal.D));
+            score += (12 - Math.abs(plusScores.I - ideal.I));
+            score += (12 - Math.abs(plusScores.S - ideal.S));
+            score += (12 - Math.abs(plusScores.C - ideal.C));
+            
+            const normalizedScore = (score / 48) * 100;
+            compatibilityAnalysis += `\n- Compatibilidad con el puesto: ${normalizedScore.toFixed(0)}%`;
 
             return compatibilityAnalysis;
         }
 
-        // Función para calcular y poblar el formulario
         function calculateAndPopulateForm(event) {
             if (!validateForm()) {
-                event.preventDefault(); // Detiene el envío si la validación falla
+                event.preventDefault();
                 return;
             }
         
             const userName = document.getElementById('userName').value.trim();
+            const jobRole = document.getElementById('jobRole').value;
         
-            // 1. Puntajes de "MÁS"
             let plusScores = { D: 0, I: 0, S: 0, C: 0 };
             const mostInputs = cleaverForm.querySelectorAll('input[name^="most_group_"]:checked');
             mostInputs.forEach(input => plusScores[input.value]++);
             
-            // 2. Puntajes de "MENOS"
             let minusScores = { D: 0, I: 0, S: 0, C: 0 };
             const leastInputs = cleaverForm.querySelectorAll('input[name^="least_group_"]:checked');
             leastInputs.forEach(input => minusScores[input.value]++);
         
-            // 3. Puntajes finales (DISC)
             const finalScores = {
                 D: plusScores.D - minusScores.D,
                 I: plusScores.I - minusScores.I,
@@ -336,7 +329,6 @@
                 C: plusScores.C - minusScores.C,
             };
         
-            // 4. Generar el análisis de la combinación
             const profileCombination = getCombination(finalScores);
             let combinationAnalysis = 'No se encontró una combinación de perfil dominante.';
             if (profileCombination) {
@@ -352,7 +344,8 @@
                 `;
             }
 
-            // 5. Generar el análisis cualitativo completo
+            const compatibilityAnalysis = calculateCompatibility(plusScores, jobRole);
+
             let qualitativeAnalysis = `
                 Análisis de Perfil de ${userName}:
                 
@@ -393,21 +386,18 @@
                 ---
                 Análisis de Compatibilidad:
                 
-                ${calculateCompatibility(plusScores)}
+                ${compatibilityAnalysis}
             `;
         
-            // 6. Crear el campo oculto con el análisis cualitativo
             const analysisInput = document.createElement('input');
             analysisInput.type = 'hidden';
             analysisInput.name = 'Analisis_Completo';
             analysisInput.value = qualitativeAnalysis;
             cleaverForm.appendChild(analysisInput);
         
-            // 7. Remover los campos ocultos antiguos si existieran para evitar duplicados
             const oldHiddenInputs = cleaverForm.querySelectorAll('input[name^="Puntajes_"]');
             oldHiddenInputs.forEach(input => input.remove());
         
-            // 8. Reemplazar el campo de nombre para que Formspree lo reconozca correctamente
             const userNameInput = document.getElementById('userName');
             const newUserNameInput = document.createElement('input');
             newUserNameInput.type = 'hidden';
@@ -415,14 +405,12 @@
             newUserNameInput.value = userName;
             cleaverForm.appendChild(newUserNameInput);
         
-            // Prevenir el envío si no hay un nombre
             if (!userName) {
                 event.preventDefault();
                 return;
             }
         }
         
-        // Función de interpretación de resultados
         function getInterpretation(score, category) {
             switch (category) {
                 case 'D':
@@ -446,13 +434,12 @@
             }
         }
 
-        // Event Listeners
         startButton.addEventListener('click', () => {
             instructionsSection.classList.add('hidden');
             cleaverForm.classList.remove('hidden');
             formControls.classList.remove('hidden');
             renderQuestions();
-            window.scrollTo(0, 0); // Desplazarse al inicio de la página
+            window.scrollTo(0, 0);
         });
 
         cleaverForm.addEventListener('submit', calculateAndPopulateForm);
