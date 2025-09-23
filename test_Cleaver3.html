@@ -118,6 +118,66 @@
             { id: "24", words: [{ text: "Sistemático", category: "C" }, { text: "Entusiasta", category: "I" }, { text: "Decidido", category: "D" }, { text: "Servicial", category: "S" }] }
         ];
 
+        const jobProfiles = {
+            "Líder de Equipo": { D: 10, I: 8, S: 4, C: 2 },
+            "Especialista en Ventas": { D: 9, I: 11, S: 3, C: 1 },
+            "Analista de Datos": { D: 2, I: 1, S: 4, C: 10 },
+            "Atención al Cliente": { D: 3, I: 6, S: 11, C: 4 },
+            "Martech Specialist Semi Senior": { D: 6, I: 5, S: 6, C: 7 },
+            "Pasante de e-commerce": { D: 3, I: 7, S: 6, C: 8 },
+            "Controller": { D: 5, I: 4, S: 7, C: 9 },
+            "Martech Specialist Senior": { D: 7, I: 5, S: 6, C: 9 },
+            "Team Lead de Plataformas de Customer y Canales de Atención": { D: 7, I: 6, S: 6, C: 8 },
+            "Operador (Almacén)": { D: 6, I: 5, S: 4, C: 9 },
+            "Digital Merchant Semi Senior": { D: 5, I: 7, S: 7, C: 8 },
+            "Legal Analyst": { D: 5, I: 7, S: 6, C: 8 },
+            "Settlements & Billing Analyst": { D: 4, I: 4, S: 8, C: 8 },
+            "Transport Delivery Lead": { D: 6, I: 7, S: 6, C: 6 }
+        };
+
+        const combinations = {
+            "DI": { 
+                name: "Orientado a Resultados", 
+                description: "Es un perfil extrovertido, dinámico y seguro de sí mismo. Son líderes naturales que toman decisiones rápidamente y disfrutan de los desafíos. Son buenos para persuadir y motivar a los demás.",
+                strengths: "Orientación a la acción, carisma, capacidad para negociar y enfoque en resultados.",
+                weaknesses: "Pueden ser impacientes, propensos a la confrontación y pueden ignorar los detalles o los sentimientos de los demás."
+            },
+            "IS": {
+                name: "Colaborador",
+                description: "Son personas amigables, colaboradoras y orientadas al equipo. Buscan la armonía y son excelentes comunicadores. Son el tipo de persona que crea un ambiente de trabajo positivo.",
+                strengths: "Habilidad para construir relaciones, empatía, capacidad para escuchar y facilidad para resolver conflictos.",
+                weaknesses: "Pueden evitar la confrontación a toda costa, ser indecisos y pueden tener dificultades para tomar decisiones difíciles."
+            },
+            "SC": {
+                name: "Confiable y Metódico",
+                description: "Son personas metódicas, cautelosas y confiables. Valoran la precisión y los procedimientos. Se sienten cómodos en ambientes estables y buscan la seguridad. Son los que se aseguran de que todo se haga correctamente.",
+                strengths: "Atención al detalle, paciencia, lealtad, minuciosidad y confiabilidad.",
+                weaknesses: "Pueden ser resistentes al cambio, indecisos y pueden perderse en los detalles, lo que puede ralentizar el progreso."
+            },
+            "CD": {
+                name: "Maestro y Perfeccionista",
+                description: "Un perfil que combina la atención al detalle con un fuerte deseo de control. Estas personas son muy exigentes consigo mismas y con los demás. Son analíticas, directas y centradas en la calidad.",
+                strengths: "Pensamiento crítico, alta calidad de trabajo, habilidad para resolver problemas complejos y capacidad para identificar riesgos.",
+                weaknesses: "Pueden ser demasiado críticos, poco flexibles y tienden a trabajar de forma independiente."
+            },
+        };
+
+        const getCombination = (scores) => {
+            const sortedScores = Object.entries(scores).sort(([, a], [, b]) => b - a);
+            const topTwo = sortedScores.slice(0, 2);
+            if (topTwo[0][1] <= 0) return null; // No hay un perfil dominante
+            
+            const comboKey = topTwo.map(([key]) => key).join('');
+            
+            if (combinations[comboKey]) {
+                return combinations[comboKey];
+            } else {
+                // Si la combinación no existe en el objeto, la invertimos para buscar
+                const invertedComboKey = topTwo.map(([key]) => key).reverse().join('');
+                return combinations[invertedComboKey];
+            }
+        };
+
         // Referencias a elementos del DOM
         const startButton = document.getElementById('start-button');
         const instructionsSection = document.getElementById('instructions');
@@ -218,6 +278,36 @@
 
             return isValid;
         }
+        
+        // Función para calcular la compatibilidad
+        function calculateCompatibility(plusScores) {
+            let compatibilityAnalysis = "Compatibilidad con Perfiles de Puesto:\n";
+            let totalCompatibility = 0;
+            const profilesCount = Object.keys(jobProfiles).length;
+
+            for (const profile in jobProfiles) {
+                const ideal = jobProfiles[profile];
+                let score = 0;
+                
+                // Comparar D
+                score += (12 - Math.abs(plusScores.D - ideal.D));
+                // Comparar I
+                score += (12 - Math.abs(plusScores.I - ideal.I));
+                // Comparar S
+                score += (12 - Math.abs(plusScores.S - ideal.S));
+                // Comparar C
+                score += (12 - Math.abs(plusScores.C - ideal.C));
+                
+                const normalizedScore = (score / 48) * 100; // 48 es el puntaje máximo total
+                compatibilityAnalysis += `\n- ${profile}: ${normalizedScore.toFixed(0)}% de compatibilidad`;
+                totalCompatibility += normalizedScore;
+            }
+
+            const averageCompatibility = totalCompatibility / profilesCount;
+            compatibilityAnalysis += `\n\n- Compatibilidad promedio con los perfiles: ${averageCompatibility.toFixed(0)}%`;
+
+            return compatibilityAnalysis;
+        }
 
         // Función para calcular y poblar el formulario
         function calculateAndPopulateForm(event) {
@@ -246,7 +336,23 @@
                 C: plusScores.C - minusScores.C,
             };
         
-            // 4. Generar el análisis cualitativo
+            // 4. Generar el análisis de la combinación
+            const profileCombination = getCombination(finalScores);
+            let combinationAnalysis = 'No se encontró una combinación de perfil dominante.';
+            if (profileCombination) {
+                combinationAnalysis = `
+                ---
+                Perfil de Combinación Principal: ${profileCombination.name}
+                
+                Descripción: ${profileCombination.description}
+                
+                Fortalezas: ${profileCombination.strengths}
+                
+                Debilidades: ${profileCombination.weaknesses}
+                `;
+            }
+
+            // 5. Generar el análisis cualitativo completo
             let qualitativeAnalysis = `
                 Análisis de Perfil de ${userName}:
                 
@@ -278,23 +384,30 @@
                 
                 Influencia (I): ${getInterpretation(finalScores.I, 'I')}
                 
-                Estabilidad (S): ${getInterpretation(finalScores.S, 'S')}
+                Estabilidad (S) / Solidez: ${getInterpretation(finalScores.S, 'S')}
                 
-                Concienciación (C): ${getInterpretation(finalScores.C, 'C')}
+                Concienciación (C) / Cumplimiento: ${getInterpretation(finalScores.C, 'C')}
+                
+                ${combinationAnalysis}
+                
+                ---
+                Análisis de Compatibilidad:
+                
+                ${calculateCompatibility(plusScores)}
             `;
         
-            // 5. Crear el campo oculto con el análisis cualitativo
+            // 6. Crear el campo oculto con el análisis cualitativo
             const analysisInput = document.createElement('input');
             analysisInput.type = 'hidden';
             analysisInput.name = 'Analisis_Completo';
             analysisInput.value = qualitativeAnalysis;
             cleaverForm.appendChild(analysisInput);
         
-            // 6. Remover los campos ocultos antiguos si existieran para evitar duplicados
+            // 7. Remover los campos ocultos antiguos si existieran para evitar duplicados
             const oldHiddenInputs = cleaverForm.querySelectorAll('input[name^="Puntajes_"]');
             oldHiddenInputs.forEach(input => input.remove());
         
-            // 7. Reemplazar el campo de nombre para que Formspree lo reconozca correctamente
+            // 8. Reemplazar el campo de nombre para que Formspree lo reconozca correctamente
             const userNameInput = document.getElementById('userName');
             const newUserNameInput = document.createElement('input');
             newUserNameInput.type = 'hidden';
