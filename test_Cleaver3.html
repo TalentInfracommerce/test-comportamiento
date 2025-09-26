@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Test de Cleaver (DISC)</title>
+    <title>Evaluación de Perfil Conductual</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <style>
@@ -30,14 +30,22 @@
             border-bottom: none;
             margin-bottom: 0;
         }
+        #timer-display {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .timer-warning {
+            color: #ef4444; /* Rojo para la advertencia */
+        }
     </style>
 </head>
 <body class="bg-gray-100 flex items-center justify-center p-4 min-h-screen">
     <div class="container mx-auto">
         <div id="app" class="space-y-8">
             <header class="text-center">
-                <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-2">Test de Cleaver (DISC)</h1>
-                <p class="text-gray-600 text-lg">Evalúa tu perfil de comportamiento en cuatro dimensiones: Dominancia, Influencia, Estabilidad y Concienciación.</p>
+                <h1 class="text-4xl md:text-5xl font-bold text-gray-800 mb-2">Evaluación de Perfil Conductual</h1>
+                <p class="text-gray-600 text-lg">Mide tu perfil de comportamiento en las dimensiones clave del ambiente laboral.</p>
             </header>
 
             <!-- Sección de instrucciones -->
@@ -47,11 +55,20 @@
                     <li>Por favor, responde a todas las preguntas. No dejes ninguna en blanco.</li>
                     <li>En cada grupo de palabras, selecciona la que te describa "MÁS" y la que te describa "MENOS".</li>
                     <li>Responde de forma espontánea, basándote en cómo eres realmente, no en cómo te gustaría ser.</li>
+                    <li class="font-bold text-red-600">Tiempo límite: Tienes 10 minutos para completar el test. ¡Responde rápidamente!</li>
                 </ol>
                 <div class="mt-6 text-center">
                     <button id="start-button" class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-full hover:bg-blue-700 transition-colors duration-300 transform hover:scale-105">
                         Empezar Test
                     </button>
+                </div>
+            </div>
+
+            <!-- Contador de tiempo -->
+            <div id="timer-box" class="card hidden text-center p-3">
+                <div class="flex items-center justify-center space-x-2">
+                    <i class="fas fa-clock text-xl text-gray-600"></i>
+                    <span id="timer-display">10:00</span>
                 </div>
             </div>
 
@@ -90,6 +107,13 @@
     </div>
     
     <script>
+        // --- CONFIGURACIÓN Y LÓGICA DEL TEST ---
+
+        // Configuración del temporizador
+        const TIME_LIMIT_SECONDS = 600; // 10 minutos
+        let timeLeft = TIME_LIMIT_SECONDS;
+        let timerInterval;
+
         // Definición de las preguntas del test
         const questions = [
             { id: '1', words: [{ text: "Decidido", category: "D" }, { text: "Convincente", category: "I" }, { text: "Paciente", category: "S" }, { text: "Preciso", category: "C" }] },
@@ -118,6 +142,7 @@
             { id: "24", words: [{ text: "Sistemático", category: "C" }, { text: "Entusiasta", category: "I" }, { text: "Decidido", category: "D" }, { text: "Servicial", category: "S" }] }
         ];
 
+        // Perfiles ideales (escalados a la puntuación de "MÁS", rango 0-12)
         const jobProfiles = {
             "Martech Specialist Semi Senior": { D: 6, I: 5, S: 6, C: 7 },
             "Pasante de e-commerce": { D: 3, I: 7, S: 6, C: 8 },
@@ -128,9 +153,20 @@
             "Digital Merchant Semi Senior": { D: 5, I: 7, S: 7, C: 8 },
             "Legal Analyst": { D: 5, I: 7, S: 6, C: 8 },
             "Settlements & Billing Analyst": { D: 4, I: 4, S: 8, C: 8 },
-            "Transport Delivery Lead": { D: 6, I: 7, S: 6, C: 6 }
+            "Transport Delivery Lead": { D: 6, I: 7, S: 6, C: 6 },
+            "Web Analytics Analyst": { D: 5, I: 5, S: 6, C: 8 },
+            "Warehouse Support Analyst JR": { D: 5, I: 5, S: 7, C: 7 },
+            "Transport Analyst (JR)": { D: 4, I: 5, S: 7, C: 8 },
+            "Product Owner": {D: 7, I: 8, S: 5, C: 5},
+            "Pasante de finanzas": { D: 5, I: 6, S: 7, C: 7 },
+            "CUSTOMER SERVICE TEAM LEAD": { D: 6, I: 6, S: 4, C: 5 },
+            "CRO LEAD": { D: 8, I: 6, S: 5, C: 5 },
+            "BRAND LOGISTICS ANALYST": { D: 5, I: 7, S: 6, C: 6 },
+            "ANALYTICS & BI SPECIALIST": { D: 6, I: 6, S: 5, C: 7 },
+            "ANALISTA DE MÉTRICAS, REPORTING Y GESTIÓN ADMINISTRATIVA JR": { D: 4, I: 6, S: 7, C: 8 }
         };
 
+        // Lógica de combinaciones de perfiles
         const combinations = {
             "DI": { 
                 name: "Orientado a Resultados", 
@@ -158,21 +194,7 @@
             },
         };
 
-        const getCombination = (scores) => {
-            const sortedScores = Object.entries(scores).sort(([, a], [, b]) => b - a);
-            const topTwo = sortedScores.slice(0, 2);
-            if (topTwo[0][1] <= 0) return null;
-            
-            const comboKey = topTwo.map(([key]) => key).join('');
-            
-            if (combinations[comboKey]) {
-                return combinations[comboKey];
-            } else {
-                const invertedComboKey = topTwo.map(([key]) => key).reverse().join('');
-                return combinations[invertedComboKey];
-            }
-        };
-
+        // Referencias a elementos del DOM
         const startButton = document.getElementById('start-button');
         const instructionsSection = document.getElementById('instructions');
         const cleaverForm = document.getElementById('cleaver-form');
@@ -180,7 +202,45 @@
         const successSection = document.getElementById('success-section');
         const validationMessage = document.getElementById('validation-message');
         const restartButton = document.getElementById('restart-button');
-        
+        const timerDisplay = document.getElementById('timer-display');
+        const timerBox = document.getElementById('timer-box');
+
+        // Función para formatear el tiempo
+        function formatTime(seconds) {
+            const min = Math.floor(seconds / 60);
+            const sec = seconds % 60;
+            return `${min.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+        }
+
+        // Función para actualizar el temporizador
+        function updateTimer() {
+            if (timeLeft <= 0) {
+                clearInterval(timerInterval);
+                timerDisplay.textContent = "¡Tiempo agotado!";
+                timerDisplay.classList.add('timer-warning');
+                // Envía el formulario automáticamente
+                submitForm();
+                return;
+            }
+
+            timerDisplay.textContent = formatTime(timeLeft);
+
+            if (timeLeft <= 60) {
+                timerDisplay.classList.add('timer-warning');
+            } else {
+                timerDisplay.classList.remove('timer-warning');
+            }
+
+            timeLeft--;
+        }
+
+        // Iniciar el temporizador
+        function startTimer() {
+            timeLeft = TIME_LIMIT_SECONDS;
+            timerInterval = setInterval(updateTimer, 1000);
+            updateTimer(); // Llamada inicial para evitar un retraso de 1 segundo
+        }
+
         function renderQuestions() {
             let jobOptions = '';
             for (const job in jobProfiles) {
@@ -244,12 +304,12 @@
         }
 
         function validateForm() {
-            let isValid = true;
             validationMessage.textContent = '';
             validationMessage.classList.add('hidden');
 
             const userNameInput = document.getElementById('userName');
             const jobRoleInput = document.getElementById('jobRole');
+            
             if (!userNameInput.value.trim()) {
                 validationMessage.textContent = 'Por favor, ingresa tu nombre.';
                 validationMessage.classList.remove('hidden');
@@ -261,58 +321,107 @@
                 return false;
             }
 
+            // Validación de MÁS y MENOS diferentes en cada grupo
             for (const q of questions) {
                 const mostSelected = document.querySelector(`input[name="most_group_${q.id}"]:checked`);
                 const leastSelected = document.querySelector(`input[name="least_group_${q.id}"]:checked`);
 
-                if (!mostSelected || !leastSelected) {
-                    isValid = false;
-                    break;
-                }
-                
-                const mostWord = mostSelected.dataset.word;
-                const leastWord = leastSelected.dataset.word;
-                if (mostWord === leastWord) {
-                    isValid = false;
-                    validationMessage.textContent = 'En cada grupo, las selecciones de "MÁS" y "MENOS" deben ser palabras diferentes.';
-                    validationMessage.classList.remove('hidden');
-                    break;
+                if (mostSelected && leastSelected) {
+                    const mostWord = mostSelected.dataset.word;
+                    const leastWord = leastSelected.dataset.word;
+                    if (mostWord === leastWord) {
+                        validationMessage.textContent = 'En cada grupo, las selecciones de "MÁS" y "MENOS" deben ser palabras diferentes.';
+                        validationMessage.classList.remove('hidden');
+                        return false;
+                    }
                 }
             }
-
-            if (!isValid && validationMessage.classList.contains('hidden')) {
-                validationMessage.textContent = 'Por favor, responde a todas las preguntas.';
-                validationMessage.classList.remove('hidden');
-            }
-
-            return isValid;
+            return true;
         }
         
+        // Obtener el tipo de combinación
+        function getCombination(scores) {
+            const sortedScores = Object.entries(scores).sort(([, a], [, b]) => b - a);
+            const topTwo = sortedScores.slice(0, 2);
+            // Solo considera combinaciones si el puntaje más alto es positivo
+            if (topTwo[0][1] <= 0) return null; 
+            
+            const comboKey = topTwo.map(([key]) => key).join('');
+            
+            if (combinations[comboKey]) {
+                return combinations[comboKey];
+            } else {
+                // Verificar la combinación invertida (ej: SC y CS son el mismo perfil)
+                const invertedComboKey = topTwo.map(([key]) => key).reverse().join('');
+                return combinations[invertedComboKey];
+            }
+        }
+
+        // Función para calcular la compatibilidad
         function calculateCompatibility(plusScores, selectedJob) {
             let compatibilityAnalysis = `Compatibilidad con el puesto de ${selectedJob}:\n`;
 
             const ideal = jobProfiles[selectedJob];
             let score = 0;
             
+            // Cálculo de "distancia" (menor diferencia = mayor puntaje)
+            // La distancia máxima en cada categoría es 12 (0 a 12), así que 12 - distancia da el puntaje de compatibilidad.
             score += (12 - Math.abs(plusScores.D - ideal.D));
             score += (12 - Math.abs(plusScores.I - ideal.I));
             score += (12 - Math.abs(plusScores.S - ideal.S));
             score += (12 - Math.abs(plusScores.C - ideal.C));
             
+            // Normalizar el puntaje a un porcentaje (Máximo total es 48, por 4 categorías)
             const normalizedScore = (score / 48) * 100;
-            compatibilityAnalysis += `\n- Compatibilidad con el puesto: ${normalizedScore.toFixed(0)}%`;
+            compatibilityAnalysis += `\n- Porcentaje de Compatibilidad: ${normalizedScore.toFixed(0)}%`;
 
             return compatibilityAnalysis;
         }
 
+        // Función para generar el análisis cualitativo
+        function getInterpretation(score, category) {
+            switch (category) {
+                case 'D':
+                    if (score > 5) return 'Puntaje alto: Tiende a ser directo, competitivo, enérgico y orientado a los resultados. Le gusta tomar el control y enfrentar desafíos.';
+                    if (score < -5) return 'Puntaje bajo: Prefiere un entorno más estable y predecible. Tiende a ser cauteloso, deliberado y a evitar la confrontación.';
+                    return 'Puntaje moderado: Es flexible y puede adaptarse a diferentes situaciones, tanto competitivas como colaborativas.';
+                case 'I':
+                    if (score > 5) return 'Puntaje alto: Se caracteriza por ser persuasivo, optimista y sociable. Le gusta trabajar con otras personas y es capaz de influir en su entorno.';
+                    if (score < -5) return 'Puntaje bajo: Es más reservado, analítico y prefiere trabajar de forma independiente. No se siente cómodo siendo el centro de atención.';
+                    return 'Puntaje moderado: Puede ser tanto sociable como reservado, adaptando su estilo a la situación.';
+                case 'S':
+                    if (score > 5) return 'Puntaje alto: Tiende a ser paciente, cooperativo, confiable y constante. Le gusta la estabilidad, la armonía y es un miembro de equipo leal.';
+                    if (score < -5) return 'Puntaje bajo: Es una persona activa, dinámica y orientada al cambio. Se siente cómodo con la variedad y el ritmo rápido.';
+                    return 'Puntaje moderado: Es capaz de mantener un buen ritmo, pero también puede adaptarse a nuevas situaciones con relativa facilidad.';
+                case 'C':
+                    if (score > 5) return 'Puntaje alto: Se distingue por ser preciso, analítico, formal y meticuloso. Valora la calidad, la exactitud y los procedimientos correctos.';
+                    if (score < -5) return 'Puntaje bajo: Tiende a ser más flexible, menos preocupado por los detalles y más abierto a soluciones creativas. Puede ser menos formal y sistemático.';
+                    return 'Puntaje moderado: Es capaz de ser preciso cuando es necesario, pero también puede ser flexible y adaptable a diferentes situaciones.';
+                default:
+                    return '';
+            }
+        }
+
+        // Función principal para calcular y preparar el envío (llamada también por el temporizador)
         function calculateAndPopulateForm(event) {
-            if (!validateForm()) {
+            // Detiene el envío si la validación falla (solo si es un clic en el botón, no en el temporizador)
+            if (event && !validateForm()) {
                 event.preventDefault();
                 return;
             }
-        
-            const userName = document.getElementById('userName').value.trim();
-            const jobRole = document.getElementById('jobRole').value;
+            
+            // Asegura que el temporizador se detenga al enviar el test
+            clearInterval(timerInterval);
+
+            // Evita el envío si ya fue enviado por el temporizador
+            if (cleaverForm.getAttribute('data-submitted') === 'true') {
+                event.preventDefault();
+                return;
+            }
+            cleaverForm.setAttribute('data-submitted', 'true');
+
+            const userName = document.getElementById('userName').value.trim() || 'Desconocido (Tiempo Agotado)';
+            const jobRole = document.getElementById('jobRole').value || 'No Seleccionado';
         
             let plusScores = { D: 0, I: 0, S: 0, C: 0 };
             const mostInputs = cleaverForm.querySelectorAll('input[name^="most_group_"]:checked');
@@ -330,7 +439,7 @@
             };
         
             const profileCombination = getCombination(finalScores);
-            let combinationAnalysis = 'No se encontró una combinación de perfil dominante.';
+            let combinationAnalysis = 'No se encontró una combinación de perfil dominante (puntajes bajos).';
             if (profileCombination) {
                 combinationAnalysis = `
                 ---
@@ -344,27 +453,32 @@
                 `;
             }
 
-            const compatibilityAnalysis = calculateCompatibility(plusScores, jobRole);
+            const compatibilityAnalysis = jobRole && jobProfiles[jobRole] 
+                ? calculateCompatibility(plusScores, jobRole) 
+                : 'Análisis de Compatibilidad no disponible (Puesto no seleccionado).';
 
             let qualitativeAnalysis = `
                 Análisis de Perfil de ${userName}:
                 
                 ---
-                Resultados de Puntaje Final (DISC):
+                Puesto de comparación: ${jobRole}
+                
+                ---
+                Resultados de Puntaje Final (DISC) [Rango: -12 a +12]:
                 D: ${finalScores.D}
                 I: ${finalScores.I}
                 S: ${finalScores.S}
                 C: ${finalScores.C}
                 
                 ---
-                Puntajes de "MÁS" (Comportamiento Preferido):
+                Puntajes de "MÁS" (Comportamiento Preferido) [Rango: 0 a 12]:
                 D: ${plusScores.D}
                 I: ${plusScores.I}
                 S: ${plusScores.S}
                 C: ${plusScores.C}
                 
                 ---
-                Puntajes de "MENOS" (Comportamiento Menos Preferido):
+                Puntajes de "MENOS" (Comportamiento Menos Preferido) [Rango: 0 a 12]:
                 D: ${minusScores.D}
                 I: ${minusScores.I}
                 S: ${minusScores.S}
@@ -389,64 +503,54 @@
                 ${compatibilityAnalysis}
             `;
         
+            // Elimina inputs previos para evitar duplicados en el envío
+            const oldHiddenInputs = cleaverForm.querySelectorAll('input[name^="Analisis_Completo"]');
+            oldHiddenInputs.forEach(input => input.remove());
+        
             const analysisInput = document.createElement('input');
             analysisInput.type = 'hidden';
             analysisInput.name = 'Analisis_Completo';
             analysisInput.value = qualitativeAnalysis;
             cleaverForm.appendChild(analysisInput);
-        
-            const oldHiddenInputs = cleaverForm.querySelectorAll('input[name^="Puntajes_"]');
-            oldHiddenInputs.forEach(input => input.remove());
-        
-            const userNameInput = document.getElementById('userName');
-            const newUserNameInput = document.createElement('input');
-            newUserNameInput.type = 'hidden';
-            newUserNameInput.name = 'name';
-            newUserNameInput.value = userName;
-            cleaverForm.appendChild(newUserNameInput);
-        
-            if (!userName) {
-                event.preventDefault();
-                return;
-            }
+            
+            // Añade inputs para que Formspree use el nombre como asunto
+            const nameInput = document.createElement('input');
+            nameInput.type = 'hidden';
+            nameInput.name = '_subject';
+            nameInput.value = `Resultados Test Conductual: ${userName}`;
+            cleaverForm.appendChild(nameInput);
         }
-        
-        function getInterpretation(score, category) {
-            switch (category) {
-                case 'D':
-                    if (score > 5) return 'Puntaje alto: Tiende a ser directo, competitivo, enérgico y orientado a los resultados. Le gusta tomar el control y enfrentar desafíos.';
-                    if (score < -5) return 'Puntaje bajo: Prefiere un entorno más estable y predecible. Tiende a ser cauteloso, deliberado y a evitar la confrontación.';
-                    return 'Puntaje moderado: Es flexible y puede adaptarse a diferentes situaciones, tanto competitivas como colaborativas.';
-                case 'I':
-                    if (score > 5) return 'Puntaje alto: Se caracteriza por ser persuasivo, optimista y sociable. Le gusta trabajar con otras personas y es capaz de influir en su entorno.';
-                    if (score < -5) return 'Puntaje bajo: Es más reservado, analítico y prefiere trabajar de forma independiente. No se siente cómodo siendo el centro de atención.';
-                    return 'Puntaje moderado: Puede ser tanto sociable como reservado, adaptando su estilo a la situación.';
-                case 'S':
-                    if (score > 5) return 'Puntaje alto: Tiende a ser paciente, cooperativo, confiable y constante. Le gusta la estabilidad, la armonía y es un miembro de equipo leal.';
-                    if (score < -5) return 'Puntaje bajo: Es una persona activa, dinámica y orientada al cambio. Se siente cómodo con la variedad y el ritmo rápido.';
-                    return 'Puntaje moderado: Es capaz de mantener un buen ritmo, pero también puede adaptarse a nuevas situaciones con relativa facilidad.';
-                case 'C':
-                    if (score > 5) return 'Puntaje alto: Se distingue por ser preciso, analítico, formal y meticuloso. Valora la calidad, la exactitud y los procedimientos correctos.';
-                    if (score < -5) return 'Puntaje bajo: Tiende a ser más flexible, menos preocupado por los detalles y más abierto a soluciones creativas. Puede ser menos formal y sistemático.';
-                    return 'Puntaje moderado: Es capaz de ser preciso cuando es necesario, pero también puede ser flexible y adaptable a diferentes situaciones.';
-                default:
-                    return '';
-            }
+
+        function submitForm() {
+             // Llama a la función de cálculo antes del envío
+            calculateAndPopulateForm(null); 
+            // Envía el formulario de Formspree
+            cleaverForm.submit();
         }
 
         startButton.addEventListener('click', () => {
             instructionsSection.classList.add('hidden');
+            timerBox.classList.remove('hidden');
             cleaverForm.classList.remove('hidden');
             formControls.classList.remove('hidden');
             renderQuestions();
+            startTimer();
             window.scrollTo(0, 0);
         });
 
+        // Al hacer clic en enviar, ejecuta el cálculo y permite que Formspree haga el POST
         cleaverForm.addEventListener('submit', calculateAndPopulateForm);
 
         restartButton.addEventListener('click', () => {
+            // Limpia el temporizador si el usuario reinicia
+            clearInterval(timerInterval);
+            cleaverForm.setAttribute('data-submitted', 'false');
+            timerDisplay.classList.remove('timer-warning');
+            timerDisplay.textContent = formatTime(TIME_LIMIT_SECONDS); // Resetea la visualización
+            
             successSection.classList.add('hidden');
             instructionsSection.classList.remove('hidden');
+            timerBox.classList.add('hidden');
             cleaverForm.reset();
             window.scrollTo(0, 0);
         });
